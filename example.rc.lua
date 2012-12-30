@@ -2,6 +2,7 @@
 --
 -- Standard awesome library
 require("awful")
+require("awful.autofocus")
 -- Theme handling library
 require("beautiful")
 -- Notification library
@@ -60,25 +61,23 @@ shifty.config.tags = {
         layout    = awful.layout.suit.max,
         mwfact    = 0.60,
         exclusive = false,
-        solitary  = false,
         position  = 1,
         init      = true,
         screen    = 1,
         slave     = true,
     },
     web = {
-        layout    = awful.layout.suit.tile.bottom,
-        mwfact    = 0.65,
-        exclusive = true,
-        solitary  = true,
-        position  = 4,
-        spawn     = browser,
+        layout      = awful.layout.suit.tile.bottom,
+        mwfact      = 0.65,
+        exclusive   = true,
+        max_clients = 1,
+        position    = 4,
+        spawn       = browser,
     },
     mail = {
         layout    = awful.layout.suit.tile,
         mwfact    = 0.55,
         exclusive = false,
-        solitary  = false,
         position  = 5,
         spawn     = mail,
         slave     = true
@@ -86,7 +85,6 @@ shifty.config.tags = {
     media = {
         layout    = awful.layout.suit.float,
         exclusive = false,
-        solitary  = false,
         position  = 8,
     },
     office = {
@@ -302,11 +300,11 @@ shifty.taglist = mytaglist
 shifty.init()
 
 -- Mouse bindings
-root.buttons({
-    awful.button({}, 3, function() mymainmenu:toggle() end),
+root.buttons(awful.util.table.join(
+    awful.button({}, 3, function() mymainmenu:show({keygrabber=true}) end),
     awful.button({}, 4, awful.tag.viewnext),
     awful.button({}, 5, awful.tag.viewprev)
-})
+))
 
 -- Key bindings
 globalkeys = awful.util.table.join(
@@ -319,9 +317,15 @@ globalkeys = awful.util.table.join(
     awful.key({modkey, "Shift"}, "d", shifty.del), -- delete a tag
     awful.key({modkey, "Shift"}, "n", shifty.send_prev), -- client to prev tag
     awful.key({modkey}, "n", shifty.send_next), -- client to next tag
-    awful.key({modkey, "Control"}, "n", function()
-        shifty.tagtoscr(awful.util.cycle(screen.count(), mouse.screen + 1))
-    end), -- move client to next tag
+    awful.key({modkey, "Control"},
+              "n",
+              function()
+                  local t = awful.tag.selected()
+                  local s = awful.util.cycle(screen.count(), t.screen + 1)
+                  awful.tag.history.restore()
+                  t = shifty.tagtoscr(s, t)
+                  awful.tag.viewonly(t)
+              end),
     awful.key({modkey}, "a", shifty.add), -- creat a new tag
     awful.key({modkey,}, "r", shifty.rename), -- rename a tag
     awful.key({modkey, "Shift"}, "a", -- nopopup new tag
@@ -375,14 +379,14 @@ globalkeys = awful.util.table.join(
     -- Prompt
     awful.key({modkey}, "F1", function()
         awful.prompt.run({prompt = "Run: "},
-        mypromptbox[mouse.screen],
+        mypromptbox[mouse.screen].widget,
         awful.util.spawn, awful.completion.shell,
         awful.util.getdir("cache") .. "/history")
         end),
 
     awful.key({modkey}, "F4", function()
         awful.prompt.run({prompt = "Run Lua code: "},
-        mypromptbox[mouse.screen],
+        mypromptbox[mouse.screen].widget,
         awful.util.eval, nil,
         awful.util.getdir("cache") .. "/history_eval")
         end)
@@ -390,8 +394,7 @@ globalkeys = awful.util.table.join(
 
 -- Client awful tagging: this is useful to tag some clients and then do stuff
 -- like move to tag on them
-clientkeys =
-{
+clientkeys = awful.util.table.join(
     awful.key({modkey,}, "f", function(c) c.fullscreen = not c.fullscreen  end),
     awful.key({modkey, "Shift"}, "c", function(c) c:kill() end),
     awful.key({modkey, "Control"}, "space", awful.client.floating.toggle),
@@ -404,8 +407,9 @@ clientkeys =
         function(c)
             c.maximized_horizontal = not c.maximized_horizontal
             c.maximized_vertical   = not c.maximized_vertical
-        end),
-}
+        end)
+)
+
 -- SHIFTY: assign client keys to shifty for use in
 -- match() function(manage hook)
 shifty.config.clientkeys = clientkeys
